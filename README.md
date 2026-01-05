@@ -44,13 +44,9 @@ or for any command:
 uv run <command>
 ```
 
-Example:
-```bash
-uv run pytest -v
-```
-
 ## Run tests
 
 ```bash
 uv run pytest -v
 ```
+
