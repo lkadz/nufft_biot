@@ -1,4 +1,5 @@
 import jax.numpy as jnp
+
 from nufft_biot.forward import forward_B
 from nufft_biot.types import BoxParams
 
@@ -18,7 +19,7 @@ def test_zero_current_gives_zero_field():
     box = make_box()
     x = jnp.array([0.0])
 
-    Bx, By, Bz = forward_B(
+    Bx, By, Bz, _ = forward_B(
         x,
         box,
         I=0.0,
@@ -38,7 +39,7 @@ def test_field_midplane_symmetry():
     box = make_box()
     x = jnp.array([0.0])
 
-    Bx, By, Bz = forward_B(
+    Bx, By, Bz, _ = forward_B(
         x,
         box,
         I=1.0,
@@ -61,7 +62,7 @@ def test_field_linearity():
     box = make_box()
     x = jnp.array([0.0])
 
-    Bx1, By1, Bz1 = forward_B(
+    Bx1, By1, Bz1, _ = forward_B(
         x,
         box,
         I=1.0,
@@ -72,7 +73,7 @@ def test_field_linearity():
         N_zeta=24,
     )
 
-    Bx2, By2, Bz2 = forward_B(
+    Bx2, By2, Bz2, _ = forward_B(
         x,
         box,
         I=2.0,
@@ -92,7 +93,7 @@ def test_divergence_free_field():
     box = make_box()
     x = jnp.array([0.0])
 
-    Bx, By, Bz = forward_B(
+    Bx, By, Bz, _ = forward_B(
         x,
         box,
         I=1.0,

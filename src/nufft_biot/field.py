@@ -1,6 +1,4 @@
-# src/nufft_biot/field.py
 from __future__ import annotations
-
 import jax.numpy as jnp
 from jax_finufft import nufft1
 
@@ -50,6 +48,12 @@ def B_from_nodes_and_J(
     mask = K2 > 0.0
     K2_safe = jnp.where(mask, K2, 1.0)
 
+    k_dot_J = KX * Jx_hat + KY * Jy_hat + KZ * Jz_hat
+
+    Jx_hat = jnp.where(mask, Jx_hat - KX * k_dot_J / K2_safe, 0.0)
+    Jy_hat = jnp.where(mask, Jy_hat - KY * k_dot_J / K2_safe, 0.0)
+    Jz_hat = jnp.where(mask, Jz_hat - KZ * k_dot_J / K2_safe, 0.0)
+
     kxJx = KY * Jz_hat - KZ * Jy_hat
     kxJy = KZ * Jx_hat - KX * Jz_hat
     kxJz = KX * Jy_hat - KY * Jx_hat
@@ -63,3 +67,4 @@ def B_from_nodes_and_J(
     Bz = jnp.fft.ifftn(Bz_hat).real
 
     return Bx, By, Bz
+
