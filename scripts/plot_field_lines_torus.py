@@ -102,6 +102,40 @@ ax.plot(
     label="Torus boundary",
 )
 
+ax.annotate(
+    "",
+    xy=(major_radius, 0.0),
+    xytext=(0.0, 0.0),
+    arrowprops=dict(arrowstyle="<->", lw=2, color="black"),
+)
+
+ax.text(
+    major_radius / 2,
+    -0.08,
+    rf"$R_0 = {major_radius}$",
+    ha="center",
+    va="top",
+    fontsize=11,
+    bbox=dict(facecolor="white", edgecolor="none", alpha=0.8),
+)
+
+ax.annotate(
+    "",
+    xy=(major_radius, minor_radius),
+    xytext=(major_radius, 0.0),
+    arrowprops=dict(arrowstyle="<->", lw=2, color="black"),
+)
+
+ax.text(
+    major_radius + 0.04,
+    minor_radius / 2,
+    rf"$a = {minor_radius}$",
+    ha="left",
+    va="center",
+    fontsize=11,
+    bbox=dict(facecolor="white", edgecolor="none", alpha=0.8),
+)
+
 ax.set_aspect("equal")
 ax.set_xlim(0.6, 1.45)
 ax.set_ylim(-0.55, 0.55)
