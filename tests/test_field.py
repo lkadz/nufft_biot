@@ -39,7 +39,7 @@ def test_field_midplane_symmetry():
     box = make_box()
     x = jnp.array([0.0])
 
-    Bx, By, Bz, _ = forward_B(
+    Bx, By, Bz, center = forward_B(
         x,
         box,
         I=1.0,
@@ -50,12 +50,22 @@ def test_field_midplane_symmetry():
         N_zeta=24,
     )
 
-    Nz = box.Nz
-    mid = Nz // 2
+    kc = box.Nz // 2
+    offset = 4
+    
+    Bx_up = Bx[:, :, kc + offset]
+    Bx_dn = Bx[:, :, kc - offset]
+    
+    By_up = By[:, :, kc + offset]
+    By_dn = By[:, :, kc - offset]
+    
+    Bz_up = Bz[:, :, kc + offset]
+    Bz_dn = Bz[:, :, kc - offset]
 
-    assert jnp.allclose(Bx[:, :, mid], Bx[:, :, -mid], atol=1e-6)
-    assert jnp.allclose(By[:, :, mid], By[:, :, -mid], atol=1e-6)
-    assert jnp.allclose(Bz[:, :, mid], -Bz[:, :, -mid], atol=1e-6)
+    assert jnp.allclose(Bx_up, -Bx_dn, atol=1e-6)
+    assert jnp.allclose(By_up, -By_dn, atol=1e-6)
+    
+    assert jnp.allclose(Bz_up, Bz_dn, atol=1e-6)
 
 
 def test_field_linearity():

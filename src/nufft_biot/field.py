@@ -30,9 +30,9 @@ def B_from_nodes_and_J(
     c_y = (Jy * w).astype(jnp.complex128)
     c_z = (Jz * w).astype(jnp.complex128)
 
-    Jx_hat = nufft1(shape, c_x, tx, ty, tz, eps=eps)
-    Jy_hat = nufft1(shape, c_y, tx, ty, tz, eps=eps)
-    Jz_hat = nufft1(shape, c_z, tx, ty, tz, eps=eps)
+    Jx_hat = nufft1(shape, c_x, tx, ty, tz, eps=eps, iflag=-1)
+    Jy_hat = nufft1(shape, c_y, tx, ty, tz, eps=eps, iflag=-1)
+    Jz_hat = nufft1(shape, c_z, tx, ty, tz, eps=eps, iflag=-1)
 
     Jx_hat = jnp.fft.ifftshift(Jx_hat)
     Jy_hat = jnp.fft.ifftshift(Jy_hat)
@@ -43,8 +43,8 @@ def B_from_nodes_and_J(
     kz = 2.0 * jnp.pi * jnp.fft.fftfreq(Nz, d=box.Lz / Nz)
 
     KX, KY, KZ = jnp.meshgrid(kx, ky, kz, indexing="ij")
-
     K2 = KX**2 + KY**2 + KZ**2
+    
     mask = K2 > 0.0
     K2_safe = jnp.where(mask, K2, 1.0)
 
@@ -58,13 +58,17 @@ def B_from_nodes_and_J(
     kxJy = KZ * Jx_hat - KX * Jz_hat
     kxJz = KX * Jy_hat - KY * Jx_hat
 
-    Bx_hat = jnp.where(mask, -1j * mu0 * kxJx / K2_safe, 0.0)
-    By_hat = jnp.where(mask, -1j * mu0 * kxJy / K2_safe, 0.0)
-    Bz_hat = jnp.where(mask, -1j * mu0 * kxJz / K2_safe, 0.0)
+    Bx_hat = jnp.where(mask, 1j * mu0 * kxJx / K2_safe, 0.0)
+    By_hat = jnp.where(mask, 1j * mu0 * kxJy / K2_safe, 0.0)
+    Bz_hat = jnp.where(mask, 1j * mu0 * kxJz / K2_safe, 0.0)
+
+    volume_factor = (Nx * Ny * Nz) / (box.Lx * box.Ly * box.Lz)
+    Bx_hat *= volume_factor
+    By_hat *= volume_factor
+    Bz_hat *= volume_factor
 
     Bx = jnp.fft.ifftn(Bx_hat).real
     By = jnp.fft.ifftn(By_hat).real
     Bz = jnp.fft.ifftn(Bz_hat).real
 
     return Bx, By, Bz
-
