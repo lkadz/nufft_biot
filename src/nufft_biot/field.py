@@ -49,7 +49,6 @@ def B_from_nodes_and_J(
     K2_safe = jnp.where(mask, K2, 1.0)
 
     k_dot_J = KX * Jx_hat + KY * Jy_hat + KZ * Jz_hat
-
     Jx_hat = jnp.where(mask, Jx_hat - KX * k_dot_J / K2_safe, 0.0)
     Jy_hat = jnp.where(mask, Jy_hat - KY * k_dot_J / K2_safe, 0.0)
     Jz_hat = jnp.where(mask, Jz_hat - KZ * k_dot_J / K2_safe, 0.0)
@@ -58,9 +57,15 @@ def B_from_nodes_and_J(
     kxJy = KZ * Jx_hat - KX * Jz_hat
     kxJz = KX * Jy_hat - KY * Jx_hat
 
-    Bx_hat = jnp.where(mask, 1j * mu0 * kxJx / K2_safe, 0.0)
-    By_hat = jnp.where(mask, 1j * mu0 * kxJy / K2_safe, 0.0)
-    Bz_hat = jnp.where(mask, 1j * mu0 * kxJz / K2_safe, 0.0)
+    R_cut = min(box.Lx, box.Ly, box.Lz) / 2.0
+    
+    k_mag = jnp.sqrt(K2_safe)
+    
+    trunc_factor = 1.0 - jnp.cos(k_mag * R_cut)
+    
+    Bx_hat = jnp.where(mask, (1j * mu0 * kxJx / K2_safe) * trunc_factor, 0.0)
+    By_hat = jnp.where(mask, (1j * mu0 * kxJy / K2_safe) * trunc_factor, 0.0)
+    Bz_hat = jnp.where(mask, (1j * mu0 * kxJz / K2_safe) * trunc_factor, 0.0)
 
     volume_factor = (Nx * Ny * Nz) / (box.Lx * box.Ly * box.Lz)
     Bx_hat *= volume_factor
