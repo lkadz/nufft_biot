@@ -2,9 +2,8 @@ from __future__ import annotations
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
-
 class PeriodicFieldInterpolator:
-    def __init__(self, Bx, By, Bz, box):
+    def __init__(self, Bx, By, Bz, box, method="cubic"): 
         self.Lx = box.Lx
         self.Ly = box.Ly
         self.Lz = box.Lz
@@ -18,18 +17,21 @@ class PeriodicFieldInterpolator:
             Bx,
             bounds_error=False,
             fill_value=None,
+            method=method, 
         )
         self._By = RegularGridInterpolator(
             (self.xg, self.yg, self.zg),
             By,
             bounds_error=False,
             fill_value=None,
+            method=method,
         )
         self._Bz = RegularGridInterpolator(
             (self.xg, self.yg, self.zg),
             Bz,
             bounds_error=False,
             fill_value=None,
+            method=method,
         )
 
     def __call__(self, pos):
@@ -46,4 +48,3 @@ class PeriodicFieldInterpolator:
         bz = self._Bz(p2)[0]
 
         return np.array([bx, by, bz], dtype=float)
-

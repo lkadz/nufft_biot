@@ -22,9 +22,9 @@ def compute_B_modes(
     Nx, Ny, Nz = box.Nx, box.Ny, box.Nz
     shape = (Nx, Ny, Nz)
 
-    tx = 2.0 * jnp.pi * X / box.Lx
-    ty = 2.0 * jnp.pi * Y / box.Ly
-    tz = 2.0 * jnp.pi * Z / box.Lz
+    tx = 2.0 * jnp.pi * (X / box.Lx) - jnp.pi
+    ty = 2.0 * jnp.pi * (Y / box.Ly) - jnp.pi
+    tz = 2.0 * jnp.pi * (Z / box.Lz) - jnp.pi
 
     c_x = (Jx * w).astype(jnp.complex128)
     c_y = (Jy * w).astype(jnp.complex128)
@@ -34,39 +34,54 @@ def compute_B_modes(
     Jy_hat = nufft1(shape, c_y, tx, ty, tz, eps=eps, iflag=-1)
     Jz_hat = nufft1(shape, c_z, tx, ty, tz, eps=eps, iflag=-1)
 
-    kx = 2.0 * jnp.pi * jnp.fft.fftshift(jnp.fft.fftfreq(Nx, d=box.Lx / Nx))
-    ky = 2.0 * jnp.pi * jnp.fft.fftshift(jnp.fft.fftfreq(Ny, d=box.Ly / Ny))
-    kz = 2.0 * jnp.pi * jnp.fft.fftshift(jnp.fft.fftfreq(Nz, d=box.Lz / Nz))
+    k_vec_x = jnp.arange(-Nx // 2, Nx // 2)
+    k_vec_y = jnp.arange(-Ny // 2, Ny // 2)
+    k_vec_z = jnp.arange(-Nz // 2, Nz // 2)
+
+    phase_x = jnp.where(k_vec_x % 2 == 0, 1.0, -1.0)
+    phase_y = jnp.where(k_vec_y % 2 == 0, 1.0, -1.0)
+    phase_z = jnp.where(k_vec_z % 2 == 0, 1.0, -1.0)
+
+    phase_grid = (
+        phase_x[:, None, None]
+        * phase_y[None, :, None]
+        * phase_z[None, None, :]
+    )
+
+    Jx_hat *= phase_grid
+    Jy_hat *= phase_grid
+    Jz_hat *= phase_grid
+
+    Jx_hat = jnp.fft.ifftshift(Jx_hat)
+    Jy_hat = jnp.fft.ifftshift(Jy_hat)
+    Jz_hat = jnp.fft.ifftshift(Jz_hat)
+
+    kx = 2.0 * jnp.pi * jnp.fft.fftfreq(Nx, d=box.Lx / Nx)
+    ky = 2.0 * jnp.pi * jnp.fft.fftfreq(Ny, d=box.Ly / Ny)
+    kz = 2.0 * jnp.pi * jnp.fft.fftfreq(Nz, d=box.Lz / Nz)
 
     KX, KY, KZ = jnp.meshgrid(kx, ky, kz, indexing="ij")
-    K_mag = jnp.sqrt(KX**2 + KY**2 + KZ**2)
+    K2 = KX**2 + KY**2 + KZ**2
 
-    R_cut = min(box.Lx, box.Ly, box.Lz) / 2.0
-
-    mask = K_mag > 0.0
-    K2_safe = jnp.where(mask, K_mag**2, 1.0)
-    trunc_factor = (1.0 - jnp.cos(K_mag * R_cut)) / K2_safe
-
-    dc_term = 0.5 * R_cut**2
-
-    greens_func = jnp.where(mask, trunc_factor, dc_term)
+    mask = K2 > 0.0
+    K2_safe = jnp.where(mask, K2, 1.0)
 
     k_dot_J = KX * Jx_hat + KY * Jy_hat + KZ * Jz_hat
-    proj_factor = k_dot_J / K2_safe
+    Jx_hat = jnp.where(mask, Jx_hat - KX * k_dot_J / K2_safe, 0.0)
+    Jy_hat = jnp.where(mask, Jy_hat - KY * k_dot_J / K2_safe, 0.0)
+    Jz_hat = jnp.where(mask, Jz_hat - KZ * k_dot_J / K2_safe, 0.0)
 
-    Jx_proj = jnp.where(mask, Jx_hat - KX * proj_factor, Jx_hat)
-    Jy_proj = jnp.where(mask, Jy_hat - KY * proj_factor, Jy_hat)
-    Jz_proj = jnp.where(mask, Jz_hat - KZ * proj_factor, Jz_hat)
+    kxJx = KY * Jz_hat - KZ * Jy_hat
+    kxJy = KZ * Jx_hat - KX * Jz_hat
+    kxJz = KX * Jy_hat - KY * Jx_hat
 
-    kxJx = KY * Jz_proj - KZ * Jy_proj
-    kxJy = KZ * Jx_proj - KX * Jz_proj
-    kxJz = KX * Jy_proj - KY * Jx_proj
+    R_cut = min(box.Lx, box.Ly, box.Lz) / 2.0
+    k_mag = jnp.sqrt(K2_safe)
+    trunc_factor = 1.0 - jnp.cos(k_mag * R_cut)
 
-    factor = 1j * mu0 * greens_func
-
-    Bx_hat = factor * kxJx
-    By_hat = factor * kxJy
-    Bz_hat = factor * kxJz
+    Bx_hat = jnp.where(mask, (1j * mu0 * kxJx / K2_safe) * trunc_factor, 0.0)
+    By_hat = jnp.where(mask, (1j * mu0 * kxJy / K2_safe) * trunc_factor, 0.0)
+    Bz_hat = jnp.where(mask, (1j * mu0 * kxJz / K2_safe) * trunc_factor, 0.0)
 
     volume_factor = (Nx * Ny * Nz) / (box.Lx * box.Ly * box.Lz)
     Bx_hat *= volume_factor
@@ -105,16 +120,44 @@ def eval_B_at_targets(
     box: BoxParams,
     eps: float = 1e-6,
 ):
-    tx = 2.0 * jnp.pi * (target_pos[:, 0] % box.Lx) / box.Lx
-    ty = 2.0 * jnp.pi * (target_pos[:, 1] % box.Ly) / box.Ly
-    tz = 2.0 * jnp.pi * (target_pos[:, 2] % box.Lz) / box.Lz
+    tx_phys = target_pos[:, 0] % box.Lx
+    ty_phys = target_pos[:, 1] % box.Ly
+    tz_phys = target_pos[:, 2] % box.Lz
+
+    tx = 2.0 * jnp.pi * (tx_phys / box.Lx) - jnp.pi
+    ty = 2.0 * jnp.pi * (ty_phys / box.Ly) - jnp.pi
+    tz = 2.0 * jnp.pi * (tz_phys / box.Lz) - jnp.pi
+
+    Bx_cen = jnp.fft.fftshift(Bx_hat)
+    By_cen = jnp.fft.fftshift(By_hat)
+    Bz_cen = jnp.fft.fftshift(Bz_hat)
 
     shape = Bx_hat.shape
+    Nx, Ny, Nz = shape
+
+    k_vec_x = jnp.arange(-Nx // 2, Nx // 2)
+    k_vec_y = jnp.arange(-Ny // 2, Ny // 2)
+    k_vec_z = jnp.arange(-Nz // 2, Nz // 2)
+
+    phase_x = jnp.where(k_vec_x % 2 == 0, 1.0, -1.0)
+    phase_y = jnp.where(k_vec_y % 2 == 0, 1.0, -1.0)
+    phase_z = jnp.where(k_vec_z % 2 == 0, 1.0, -1.0)
+
+    phase_grid = (
+        phase_x[:, None, None]
+        * phase_y[None, :, None]
+        * phase_z[None, None, :]
+    )
+
+    Bx_cen *= phase_grid
+    By_cen *= phase_grid
+    Bz_cen *= phase_grid
+
     N_total = shape[0] * shape[1] * shape[2]
     scale = 1.0 / N_total
 
-    Bx = nufft2(Bx_hat, tx, ty, tz, eps=eps, iflag=1).real * scale
-    By = nufft2(By_hat, tx, ty, tz, eps=eps, iflag=1).real * scale
-    Bz = nufft2(Bz_hat, tx, ty, tz, eps=eps, iflag=1).real * scale
+    Bx = nufft2(Bx_cen, tx, ty, tz, eps=eps, iflag=1).real * scale
+    By = nufft2(By_cen, tx, ty, tz, eps=eps, iflag=1).real * scale
+    Bz = nufft2(Bz_cen, tx, ty, tz, eps=eps, iflag=1).real * scale
 
     return Bx, By, Bz
