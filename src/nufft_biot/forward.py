@@ -2,7 +2,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 
 from .types import BoxParams
-from .field import B_from_nodes_and_J
+from .field import eval_B
 from .current_models import torus_volume_current, torus_axis_filament_current
 from .embedding import embed_geometry_in_box
 
@@ -48,7 +48,7 @@ def forward_B(
 
     Xb, Yb, Zb, center = embed_geometry_in_box(X, Y, Z, box)
 
-    Bx, By, Bz = B_from_nodes_and_J(
+    Bx, By, Bz = eval_B(
         Xb,
         Yb,
         Zb,

@@ -38,29 +38,15 @@ def make_optimal_box(
 
 
 def embed_geometry_in_box(X, Y, Z, box: BoxParams):
-    xmin, xmax = X.min(), X.max()
-    ymin, ymax = Y.min(), Y.max()
-    zmin, zmax = Z.min(), Z.max()
+    xc = 0.5 * (X.min() + X.max())
+    yc = 0.5 * (Y.min() + Y.max())
+    zc = 0.5 * (Z.min() + Z.max())
 
-    Lxg = xmax - xmin
-    Lyg = ymax - ymin
-    Lzg = zmax - zmin
+    shift = jnp.array([xc, yc, zc], dtype=X.dtype)
 
-    shift_x = 0.5 * (box.Lx - Lxg) - xmin
-    shift_y = 0.5 * (box.Ly - Lyg) - ymin
-    shift_z = 0.5 * (box.Lz - Lzg) - zmin
+    Xb = X - shift[0]
+    Yb = Y - shift[1]
+    Zb = Z - shift[2]
 
-    Xb = X + shift_x
-    Yb = Y + shift_y
-    Zb = Z + shift_z
+    return Xb, Yb, Zb, shift
 
-    center = jnp.array(
-        [
-            0.5 * (xmin + xmax) + shift_x,
-            0.5 * (ymin + ymax) + shift_y,
-            0.5 * (zmin + zmax) + shift_z,
-        ],
-        dtype=X.dtype,
-    )
-
-    return Xb, Yb, Zb, center
