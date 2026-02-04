@@ -2,7 +2,7 @@ from __future__ import annotations
 import jax.numpy as jnp
 
 from .types import BoxParams
-from .field import eval_B
+from .field import compute_B_hat, eval_B
 from .current_models import torus_volume_current, torus_axis_filament_current
 from .embedding import embed_geometry_in_box
 
@@ -18,16 +18,13 @@ def forward_B(
     N_theta: int = 16,
     N_zeta: int = 32,
     current_model: str = "volume",
-    desc_eq = None,
+    desc_eq=None,
 ):
     if current_model == "desc":
         from .desc_interface import desc_volume_current
         if desc_eq is None:
-            raise ValueError("Must provide 'desc_eq' when current_model='desc'")
-            
-        X, Y, Z, Jx, Jy, Jz, w = desc_volume_current(
-            desc_eq, 
-        )
+            raise ValueError("Must provide desc_eq")
+        X, Y, Z, Jx, Jy, Jz, w = desc_volume_current(desc_eq)
     elif current_model == "volume":
         X, Y, Z, Jx, Jy, Jz, w = torus_volume_current(
             I=I,
@@ -44,19 +41,18 @@ def forward_B(
             N_zeta=N_zeta,
         )
     else:
-        raise ValueError(f"Unknown current_model: {current_model}")
+        raise ValueError(current_model)
 
     Xb, Yb, Zb, center = embed_geometry_in_box(X, Y, Z, box)
 
+    Bx_hat, By_hat, Bz_hat = compute_B_hat(
+        Xb, Yb, Zb, Jx, Jy, Jz, w, box
+    )
+
+    target_pos = jnp.stack([Xb, Yb, Zb], axis=1)
+
     Bx, By, Bz = eval_B(
-        Xb,
-        Yb,
-        Zb,
-        Jx,
-        Jy,
-        Jz,
-        w,
-        box,
+        Bx_hat, By_hat, Bz_hat, target_pos, box
     )
 
     return Bx, By, Bz, center

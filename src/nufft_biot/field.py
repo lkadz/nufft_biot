@@ -15,9 +15,9 @@ def compute_B_hat(X, Y, Z, Jx, Jy, Jz, w, box, eps=1e-12):
     ty = 2.0 * jnp.pi * Y / box.Ly
     tz = 2.0 * jnp.pi * Z / box.Lz
 
-    c_x = (Jx * w).astype(jnp.complex128)
-    c_y = (Jy * w).astype(jnp.complex128)
-    c_z = (Jz * w).astype(jnp.complex128)
+    c_x = (Jx * w) # .astype(jnp.complex128) 
+    c_y = (Jy * w) # .astype(jnp.complex128)
+    c_z = (Jz * w) # .astype(jnp.complex128)
 
     Jx_hat = nufft1(shape, c_x, tx, ty, tz, eps=eps, iflag=-1)
     Jy_hat = nufft1(shape, c_y, tx, ty, tz, eps=eps, iflag=-1)
